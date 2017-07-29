@@ -1,0 +1,15 @@
+test_iter: 277
+test_interval: 266
+base_lr: 0.0001
+display: 33
+max_iter: 26600
+lr_policy: "exp"
+gamma: 0.999807186657
+momentum: 0.9
+weight_decay: 1e-06
+snapshot: 1330
+snapshot_prefix: "snapshot"
+solver_mode: GPU
+net: "train_val.prototxt"
+solver_type: ADAM
+iter_size: 6
