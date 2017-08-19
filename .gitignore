@@ -1,1 +1,5 @@
 *.idea
+src/output_video/*
+src/logs/*
+*.pyc
+
