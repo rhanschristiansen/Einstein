@@ -1,0 +1,10 @@
+numpy
+pandas
+tf-nightly
+matplotlib
+opencv-python
+minimalmodbus
+jupyter
+scikit-learn
+scipy
+keras
