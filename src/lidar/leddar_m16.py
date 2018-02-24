@@ -44,10 +44,14 @@ class LeddarM16(object):
 
     def connect(self):
         print "Connecting to M16 sensor..."
-
+        # os.system('sudo chmod a+rw,o+rw /dev/bus/usb -R')
         connection = self.clib.LeddarConnect(self.chandle,
                                              ctypes.c_char_p("USB"),
                                              ctypes.c_char_p("AJ21005"))
+        if connection != 0:
+            raise Exception("Unable to connect to M16 USB. Be sure it is plugged in. \n"
+                            "Also, be sure we have read/write permissions to the USB device. "
+                            "Try: \"sudo chmod a+rw,o+rw /dev/bus/usb -R\"")
         connected = self.clib.LeddarGetConnected(self.chandle)
         detection_count = self.clib.LeddarGetDetectionCount(self.chandle)
         if connection == 0 and connected == 0 and detection_count == self.num_detections:
@@ -73,7 +77,8 @@ class LeddarM16(object):
             detections.append(detection)
         return detections
 
-if __name__ == '__main__':
+
+def try_sensor():
     import time
     m16_sensor = LeddarM16()
     while True:
@@ -81,7 +86,35 @@ if __name__ == '__main__':
         pretty_string = ''
         for det in detections:
             pretty_string += '{0}:{1:0.2f} '.format(det.segment, det.distance)
-        print pretty_string + '\r'
+        print pretty_string
         print
 
         time.sleep(0.1)
+
+
+def try_sensor_and_camera():
+    import time
+    import cv2
+    cap = cv2.VideoCapture()
+    if not cap.open(0):
+        raise Exception("Error opening camera")
+
+    m16_sensor = LeddarM16()
+    while True:
+        success, frame = cap.read()
+        if not success:
+            raise Exception("Error reading video frame")
+
+        detections = m16_sensor.get_detections()
+        pretty_string = ''
+        for det in detections:
+            pretty_string += '{1:0.1f} '.format(det.segment, det.distance)
+        print pretty_string
+        print
+        cv2.putText(frame, pretty_string, (0, frame.shape[0]/2), 1, 1, (0, 255, 0))
+        time.sleep(0.1)
+        cv2.imshow('frame', frame)
+
+
+if __name__ == '__main__':
+    try_sensor_and_camera()
