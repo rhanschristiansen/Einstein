@@ -8,6 +8,7 @@ class LidarSensor(object):
     def __init__(self, mode='lidar', simulation_data_file=None):
         try:
             self.distance = 0
+            self.mode = mode
             self.instrument = minimalmodbus.Instrument('/dev/ttyUSB0', 1)  # port name, slave address (in decimal)
             self.instrument.serial.baudrate = 115200  # Baud
             self.instrument.serial.bytesize = 8
