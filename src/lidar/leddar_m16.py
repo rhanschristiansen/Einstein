@@ -114,6 +114,7 @@ def try_sensor_and_camera():
         cv2.putText(frame, pretty_string, (0, frame.shape[0]/2), 1, 1, (0, 255, 0))
         time.sleep(0.1)
         cv2.imshow('frame', frame)
+        cv2.waitKey(30)
 
 
 if __name__ == '__main__':
