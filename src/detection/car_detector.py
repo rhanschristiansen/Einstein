@@ -31,10 +31,12 @@ class CarDetector(object):
         net_output = [o for o in self.net.blobs['bbox-list'].data[0] if o.any()]
 
         # TODO: resize the bounding boxes to reflect the size of the original input image
+        confidence = []
         bboxes_car = []
         for i in xrange(len(net_output)):
             # get bbox from first 4 elements of net_output at index i
             bbox = net_output[i][:4]
+            confidence.append(net_output[i][4])
             # resize the bounding box
             bbox = np.array([bbox[0] * scaleFactor[0], bbox[1] * scaleFactor[1], bbox[2] * scaleFactor[0],
                              bbox[3] * scaleFactor[1]], dtype=int)

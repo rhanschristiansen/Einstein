@@ -47,7 +47,15 @@ class LeddarM16(object):
         # os.system('sudo chmod a+rw,o+rw /dev/bus/usb -R')
         connection = self.clib.LeddarConnect(self.chandle,
                                              ctypes.c_char_p("USB"),
-                                             ctypes.c_char_p("AJ21005"))
+                                             # ctypes.c_char_p("AJ21005"),
+                                             ctypes.c_char_p("AJ46022"),
+                                             )
+        if connection != 0:
+            connection = self.clib.LeddarConnect(self.chandle,
+                                                 ctypes.c_char_p("USB"),
+                                                 ctypes.c_char_p("AJ21005"),
+                                                 # ctypes.c_char_p("AJ46022"),
+                                                 )
         if connection != 0:
             raise Exception("Unable to connect to M16 USB. Be sure it is plugged in. \n"
                             "Also, be sure we have read/write permissions to the USB device. "
@@ -118,4 +126,5 @@ def try_sensor_and_camera():
 
 
 if __name__ == '__main__':
+    # try_sensor()
     try_sensor_and_camera()

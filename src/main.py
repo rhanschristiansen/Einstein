@@ -17,8 +17,8 @@ from lidar.lidar_sensor import LidarSensor
 class Settings(object):
     def __init__(self):
         self.SIMULATION_MODE = True
-        self.SIMULATION_FILE = '/home/bob/PycharmProjects/Einstein/src/simulation_data/output43.csv'
-        self.INPUT_VIDEO_FILE = '/home/bob/PycharmProjects/Einstein/src/simulation_data/output43.avi'
+        self.SIMULATION_FILE = os.path.expanduser('~/PycharmProjects/Einstein/src/simulation_data/output43.csv')
+        self.INPUT_VIDEO_FILE = os.path.expanduser('~/PycharmProjects/Einstein/src/simulation_data/output43.avi')
         self.WEBCAM_ID = 0
         self.RECORD_VIDEO = True
         self.OUTPUT_VIDEO_FOLDER = './output_video'
@@ -87,6 +87,8 @@ def run():
         bboxes = detector.detect(img)
         detections = []  # our list of Detections objects
         bb = None
+
+        # fill in the list of detections
         if bboxes is not None and len(bboxes) > 0:
             for i, bb in enumerate(bboxes):
                 det = Detection()
@@ -96,8 +98,8 @@ def run():
                 # DRAW DETECTIONS IN GREEN (B, G, R) = (0, 255, 0)
                 cv2.rectangle(img, (bb[0], bb[1]), (bb[2], bb[3]), (0, 255, 0), 2)
                 # log the data, recall headers = ['time', 'id', 'x1', 'y1', 'x2', 'y2']
-                bb_id = i
-                data = [current_time, bb_id, bb[0], bb[1], bb[2], bb[3]]
+                # bb_id = i
+                # data = [current_time, bb_id, bb[0], bb[1], bb[2], bb[3]]
         tracker.update_tracks(detections=detections, frame_id=current_frame_position)
         # create a list of the current row for logging
         logging_data = []
