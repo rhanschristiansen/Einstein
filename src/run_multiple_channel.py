@@ -2,6 +2,7 @@
 TODO: short description
 """
 import os
+import sys
 import datetime
 import cv2
 import numpy as np
@@ -12,20 +13,24 @@ from data_logging.data_logger import DataLogger
 from distance_prediction.distance_predictor import DistancePredictor
 from lidar.lidar_sensor import LidarSensor
 
+caffe_root = '/home/robert/caffe-0.15.9/'
+sys.path.insert(0, caffe_root + 'python')
+
 
 # hold all our settings
 class Settings(object):
     def __init__(self):
         self.SIMULATION_MODE = True
+        # self.SIMULATION_FILE = os.path.expanduser('~/PycharmProjects/Einstein/src/simulation_data/output43.csv')
         self.SIMULATION_FILE = os.path.expanduser('~/PycharmProjects/Einstein/src/simulation_data/output43.csv')
-        self.INPUT_VIDEO_FILE = os.path.expanduser('~/PycharmProjects/Einstein/src/simulation_data/output43.avi')
+        # self.INPUT_VIDEO_FILE = os.path.expanduser('~/PycharmProjects/Einstein/src/simulation_data/output43.avi')
+        self.INPUT_VIDEO_FILE = os.path.expanduser('~/PycharmProjects/Einstein/Data/2018-05-05/0013.avi')
         self.WEBCAM_ID = 0
         self.RECORD_VIDEO = True
         self.OUTPUT_VIDEO_FOLDER = './output_video'
         self.OUTPUT_VIDEO_FILENAME = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
         self.ENABLE_LOGGING = True
         self.LOGGING_DIRECTORY = './logs'
-
 
 
 def run():
@@ -118,7 +123,7 @@ def run():
             data_logger.log(logging_data)
         tracker.draw_tracks(img)
         # draw lidar distance
-        cv2.putText(img, 'lidar_dist = ' + str(int(lidar_distance)) + 'ft', (0, 25),1,1.5,(255,0,0),2)
+        cv2.putText(img, 'lidar_dist = ' + str(int(lidar_distance)) + 'ft', (0, 25), 1, 1.5, (255, 0, 0), 2)
         cv2.imshow('img', img)
         key = cv2.waitKey(1)
         if key == 27:

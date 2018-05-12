@@ -9,6 +9,7 @@ from data_logging.data_logger import DataLogger
 
 RECORD = True
 M_TO_FT = 3.28084
+DRAW_LIDAR_LINES = True
 
 
 # draw the detection distances on the video feed
@@ -87,10 +88,13 @@ while True:
     data_logger.log([log_data])
     vw.write(frame)
     # Draw lidar distances
-    frame_draw = draw_lidar_spacing_lines(frame=frame,
-                                          start_x_left=START_X_LEFT_PX,
-                                          lidar_spacing_px=LIDAR_SPACING_PX,
-                                          m16_readings=detections)
+    if DRAW_LIDAR_LINES is True:
+        frame_draw = draw_lidar_spacing_lines(frame=frame,
+                                              start_x_left=START_X_LEFT_PX,
+                                              lidar_spacing_px=LIDAR_SPACING_PX,
+                                              m16_readings=detections)
+    else:
+        frame_draw = frame.copy()
     # draw vertical line in center of image
     cv2.line(frame_draw, (int(frame_draw.shape[1] / 2), 0), (int(frame_draw.shape[1] / 2), int(frame_draw.shape[0])),
              (255, 0, 255), 1)

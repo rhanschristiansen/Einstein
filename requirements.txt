@@ -6,5 +6,6 @@ opencv-python
 minimalmodbus
 jupyter
 scikit-learn
+scikit-image
 scipy
 keras

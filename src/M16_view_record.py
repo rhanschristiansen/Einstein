@@ -26,7 +26,7 @@ START_X_LEFT_PX = 615 - LIDAR_SPACING_PX * 15  # value found experimentally
 #             cv2.putText(frame, '{:.2f}'.format(y_val_m), center, 1, 1, (0,0,255), 2)
 #     return frame
 M_TO_FT = 3.28084
-def draw_lidar_spacing_lines(frame, frame_num, lidar_spacing_px=37, start_x_left=90, m16_detections=None):
+def draw_lidar_spacing_lines(frame, frame_num, lidar_spacing_px=37, start_x_left=60, m16_detections=None):
     end_x_right = start_x_left + 16 * lidar_spacing_px
     for seg, x_val in enumerate(range(start_x_left, end_x_right, lidar_spacing_px)):
         cv2.line(frame, (x_val, 0), (x_val, 480), (0, 255, 0), 2)
@@ -47,12 +47,13 @@ def draw_lidar_spacing_lines(frame, frame_num, lidar_spacing_px=37, start_x_left
 
 
 PWD = os.path.dirname(__file__)
-DATA_DIR = os.path.join(PWD, '/home/robert/PycharmProjects/Einstein/Data/{}'.format(datetime.datetime.today().strftime('%Y-%m-%d')))
-RUN_NUMBER = '0006'
+# DATA_DIR = os.path.join(PWD, '/home/robert/PycharmProjects/Einstein/Data/{}'.format(datetime.datetime.today().strftime('%Y-%m-%d')))
+DATA_DIR = os.path.join(PWD, '/home/robert/PycharmProjects/Einstein/Data/{}'.format('2018-05-05'))
+RUN_NUMBER = '0013'
 m16_detections = pd.read_csv('{}/{}.csv'.format(DATA_DIR, RUN_NUMBER))
 video_feed = cv2.VideoCapture()
 video_feed.open('{}/{}.avi'.format(DATA_DIR, RUN_NUMBER))
-SKIP_SECONDS = 20
+SKIP_SECONDS = 0
 video_feed.set(cv2.CAP_PROP_POS_FRAMES, SKIP_SECONDS * 30)
 print(m16_detections.head())
 
