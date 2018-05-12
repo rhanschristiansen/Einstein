@@ -102,10 +102,13 @@ class CarDetectorTF(object):
                         cv2.rectangle(img_draw, (int(x1), int(y1)), (int(x2), int(y2)), (0, 255, 0), 2)
 
                     cv2.imshow('img', img_draw)
-                    cv2.waitKey(30)
+                    ch = cv2.waitKey(10)
+                    if ch & 0xFF == ord('q') or ch & 0xFF == 27:
+                        break
+
 
 
 if __name__ == '__main__':
-    video_file = os.path.expanduser('~/PycharmProjects/Einstein/Data/2018-05-05/0013.avi')
+    video_file = os.path.expanduser('~/PycharmProjects/Einstein/Data/2018-05-05/0015.avi')
     detector = CarDetectorTF()
     detector.run_inference_for_video(video_file=video_file)
