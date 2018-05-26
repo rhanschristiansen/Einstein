@@ -1,10 +1,14 @@
 import os
 import glob
+import sys
+
+caffe_root = '/home/robert/caffe-0.15.9/'
+sys.path.insert(0, caffe_root + 'python')
 
 import caffe
 import cv2
 import numpy as np
-from bobs_utils import img_utils
+from src.bobs_utils import img_utils
 
 
 class CarDetector(object):
@@ -33,7 +37,7 @@ class CarDetector(object):
         # TODO: resize the bounding boxes to reflect the size of the original input image
         confidence = []
         bboxes_car = []
-        for i in xrange(len(net_output)):
+        for i in range(len(net_output)):
             # get bbox from first 4 elements of net_output at index i
             bbox = net_output[i][:4]
             confidence.append(net_output[i][4])
@@ -59,7 +63,7 @@ def main():
             break
         # get bounding box output from our car detector class
         car_bboxes = car_detector.detect_cars(img)
-        #iterate through bounding boxes to display on image
+        # iterate through bounding boxes to display on image
         for bbox in car_bboxes:
             img_utils.draw_bbox(img, bbox)
         # show image

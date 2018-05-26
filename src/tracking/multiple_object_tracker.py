@@ -91,8 +91,6 @@ class MultipleObjectTracker(object):
         # remove dead tracks
         self.tracks = [t for t in self.tracks if (t.is_dead() is False and t.delete_me is False)]
 
-
-
     def _assign_detections_to_tracks(self, detections, frame_id, save=False):
         # if there are no tracks yet, all detections are new tracks
         if len(self.tracks) == 0:

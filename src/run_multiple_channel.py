@@ -1,138 +1,105 @@
-"""
-TODO: short description
-"""
+from __future__ import print_function
 import os
-import sys
-import datetime
 import cv2
-import numpy as np
-from detection.detection import Detection
-from tracking.multiple_object_tracker import MultipleObjectTracker
-from detection.car_detector import CarDetector
-from data_logging.data_logger import DataLogger
-from distance_prediction.distance_predictor import DistancePredictor
-from lidar.lidar_sensor import LidarSensor
+import pandas as pd
+import datetime
+from detection.car_detector_tf import CarDetectorTF
 
-caffe_root = '/home/robert/caffe-0.15.9/'
-sys.path.insert(0, caffe_root + 'python')
+"""
+Open a recorded data acquisition run with video file and M16 lidar readings.
+Run live detections on the video feed with our car detector to get bounding boxes
+Goal:
+    correlate bounding box detections to lidar readings
+    This will help us to generate training data for the bounding box to distance estimation
+"""
+WRITE_VIDEO_FILE = False
+PWD = os.path.dirname(__file__)
+# DATA_DATE = datetime.datetime.today().strftime('%Y-%m-%d')
+DATA_DATE = '2018-05-05'
+DATA_DIR = os.path.join(PWD, '/home/robert/PycharmProjects/Einstein/Data/{}'.format(DATA_DATE))
+RUN_NUMBER = '0015'
+m16_detections = pd.read_csv('{}/{}.csv'.format(DATA_DIR, RUN_NUMBER))
+video_feed = cv2.VideoCapture()
+video_feed.open('{}/{}.avi'.format(DATA_DIR, RUN_NUMBER))
+SKIP_SECONDS = 0
+video_feed.set(cv2.CAP_PROP_POS_FRAMES, SKIP_SECONDS * 30)
+print(m16_detections.head())
+
+fourcc = cv2.VideoWriter_fourcc('X', 'V', 'I', 'D')
+date = os.path.basename(DATA_DIR)
+vw = cv2.VideoWriter(
+    os.path.join('/home/robert/PycharmProjects/Einstein/Data/Processed', '{}_{}.avi'.format(date, RUN_NUMBER)), fourcc,
+    20.0, (640, 480))
+detector = CarDetectorTF()
+
+LIDAR_SPACING_PX = 38  # value found experimentally
+START_X_LEFT_PX = 615 - LIDAR_SPACING_PX * 15  # value found experimentally
+M_TO_FT = 3.28084
+def draw_lidar_spacing_lines(frame, frame_num, lidar_spacing_px=37, start_x_left=60, m16_detections=None):
+    end_x_right = start_x_left + 16 * lidar_spacing_px
+    for seg, x_val in enumerate(range(start_x_left, end_x_right, lidar_spacing_px)):
+        cv2.line(frame, (x_val, 0), (x_val, 480), (0, 255, 0), 2)
+        #         print(x_val)
+        if m16_detections is not None:
+            # scale m16 reading btwn 0 and 480
+            y_val_m = m16_detections['z{}'.format(seg + 1)][frame_num]
+            y_val_ft = y_val_m * M_TO_FT
+            min_y_m = 0  # 0 meters as min
+            max_y_m = 30  # meters as max
+            y_val_normalized = (y_val_m - min_y_m) / (max_y_m - min_y_m)
+            y_val_px = frame.shape[0] - int(y_val_normalized * frame.shape[0])
+            center = (x_val, y_val_px)
+            cv2.circle(frame, center, 5, (255, 0, 0), -1)
+            cv2.putText(frame, '{:.2f}'.format(y_val_ft), center, 1, 1, (0, 0, 255), 2)
+            #             print(x_val)
+    return frame
 
 
-# hold all our settings
-class Settings(object):
-    def __init__(self):
-        self.SIMULATION_MODE = True
-        # self.SIMULATION_FILE = os.path.expanduser('~/PycharmProjects/Einstein/src/simulation_data/output43.csv')
-        self.SIMULATION_FILE = os.path.expanduser('~/PycharmProjects/Einstein/src/simulation_data/output43.csv')
-        # self.INPUT_VIDEO_FILE = os.path.expanduser('~/PycharmProjects/Einstein/src/simulation_data/output43.avi')
-        self.INPUT_VIDEO_FILE = os.path.expanduser('~/PycharmProjects/Einstein/Data/2018-05-05/0013.avi')
-        self.WEBCAM_ID = 0
-        self.RECORD_VIDEO = True
-        self.OUTPUT_VIDEO_FOLDER = './output_video'
-        self.OUTPUT_VIDEO_FILENAME = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
-        self.ENABLE_LOGGING = True
-        self.LOGGING_DIRECTORY = './logs'
+def draw_bboxes(bboxes, img):
+    """
+    Draw bounding boxes to frame
+    :param bboxes: list of bboxes in [x1,y1,x2,y2] format 
+    :param img: np.array
+    :return: image with bboxes drawn
+    """
+    img = img.copy()
+    if bboxes is not None and len(bboxes) > 0:
+        for i, bb in enumerate(bboxes):
+            cv2.rectangle(img, (bb[0], bb[1]), (bb[2], bb[3]), (0, 255, 0), 2)
 
-
-def run():
-    # create access to settings object
-    settings = Settings()
-    # initiate logging
-    if settings.ENABLE_LOGGING is True:
-        if not os.path.exists(settings.LOGGING_DIRECTORY):
-            os.mkdir(settings.LOGGING_DIRECTORY)
-        log_filename = os.path.join(settings.LOGGING_DIRECTORY,
-                                    settings.OUTPUT_VIDEO_FILENAME + '.csv')
-        # [current_frame_position, current_time_string, uid, latest_bbox, lidar_distance]
-        headers = ['frame#', 'time', 'uid', 'x1', 'y1', 'x2', 'y2', 'lidar_d(ft)', 'grnd_angle_d(ft)']
-        data_logger = DataLogger(filename=log_filename, headers=headers)
-
-    vc = cv2.VideoCapture()
-    if settings.SIMULATION_MODE is True:
-        vc.open(settings.INPUT_VIDEO_FILE)
-    else:
-        vc.open(settings.WEBCAM_ID)
-
-    if settings.RECORD_VIDEO is True:
-        if not os.path.exists(settings.OUTPUT_VIDEO_FOLDER):
-            os.mkdir(settings.OUTPUT_VIDEO_FOLDER)
-        # get first frame of video to get recording size
-        _, frame = vc.read()
-        # declare video writer obj
-        fourcc = cv2.VideoWriter_fourcc(*'XVID')
-        vw = cv2.VideoWriter(os.path.join(settings.OUTPUT_VIDEO_FOLDER, settings.OUTPUT_VIDEO_FILENAME + '.avi'),
-                             fourcc,
-                             20.0, (frame.shape[1], frame.shape[0]))
-
-    detector = CarDetector()
-    tracker = MultipleObjectTracker()
-    if settings.SIMULATION_MODE is True:
-        lidar = LidarSensor(mode='simulation', simulation_data_file=settings.SIMULATION_FILE)
-    else:
-        lidar = LidarSensor()
-    distance_predictor = DistancePredictor()
-
-    scale_factor = 0.75  # reduce frame by this size
-    tracked_bbox = []  # a list of past bboxes
-    current_frame_position = 0
-
-    while True:
-        # take a snapshot of the current time
-        current_time = datetime.datetime.now()
-        current_time_string = current_time.strftime('%Y-%m-%d %H:%M:%S.%f')[:-3]
-        # first get lidar distance
-        lidar_distance = lidar.get_distance(frame_number=current_frame_position)
-        # now acquire image and get detections
-        _, img = vc.read()
-        if img is None:
-            print 'null image retrieved! frame={}'.format(current_frame_position)
+    return img
+PAUSE = False
+while True:
+    if PAUSE is not True:
+        success, frame = video_feed.read()
+        if not success:
+            print('no frame')
             break
-        current_frame_position += 1
-        img = cv2.resize(img, (int(img.shape[1] * scale_factor), int(img.shape[0] * scale_factor)))
-        # detect objects in frame
-        bboxes = detector.detect(img)
-        detections = []  # our list of Detections objects
-        bb = None
-
-        # fill in the list of detections
-        if bboxes is not None and len(bboxes) > 0:
-            for i, bb in enumerate(bboxes):
-                det = Detection()
-                det.bbox = np.array([bb[0], bb[1], bb[2], bb[3]])
-                det.frame_id = current_frame_position
-                detections.append(det)
-                # DRAW DETECTIONS IN GREEN (B, G, R) = (0, 255, 0)
-                cv2.rectangle(img, (bb[0], bb[1]), (bb[2], bb[3]), (0, 255, 0), 2)
-                # log the data, recall headers = ['time', 'id', 'x1', 'y1', 'x2', 'y2']
-                # bb_id = i
-                # data = [current_time, bb_id, bb[0], bb[1], bb[2], bb[3]]
-        tracker.update_tracks(detections=detections, frame_id=current_frame_position)
-        # create a list of the current row for logging
-        logging_data = []
-        # get the "head" of each track
-        current_tracks = tracker.get_track_heads()
-        for current_track in current_tracks:
-            latest_bbox = current_track.get_latest_bb()
-            # get predicted distances from bounding box
-            predicted_distances = distance_predictor.predict(latest_bbox)
-            uid = current_track.uid
-            logging_row = [current_frame_position, current_time_string, uid, latest_bbox[0], latest_bbox[1],
-                           latest_bbox[2],
-                           latest_bbox[3], lidar_distance, predicted_distances[0]]
-            logging_data.append(logging_row)
-        if settings.ENABLE_LOGGING is True:
-            data_logger.log(logging_data)
-        tracker.draw_tracks(img)
-        # draw lidar distance
-        cv2.putText(img, 'lidar_dist = ' + str(int(lidar_distance)) + 'ft', (0, 25), 1, 1.5, (255, 0, 0), 2)
-        cv2.imshow('img', img)
-        key = cv2.waitKey(1)
-        if key == 27:
+        bboxes = detector.detect(img=frame)
+        frame_draw = draw_bboxes(img=frame, bboxes=bboxes)
+        frame_num = video_feed.get(cv2.CAP_PROP_POS_FRAMES)
+        try:
+            frame_draw = draw_lidar_spacing_lines(frame_draw, frame_num, m16_detections=m16_detections)
+        except:
+            print('Leave last frame')
             break
-        if settings.RECORD_VIDEO is True:
-            # rescale image back to original shape
-            img = cv2.resize(img, (int(img.shape[1] / scale_factor), int(img.shape[0] / scale_factor)))
-            vw.write(img)
 
+        # write video
+        if WRITE_VIDEO_FILE:
+            vw.write(frame_draw)
+    # draw vertical line in center of image
+    cv2.line(frame_draw, (int(frame_draw.shape[1] / 2), 0), (int(frame_draw.shape[1] / 2), int(frame_draw.shape[0])),
+             (255, 0, 255), 1)
+    cv2.line(frame_draw, (0, int(frame_draw.shape[0] / 2)), (int(frame_draw.shape[1]), int(frame_draw.shape[0] / 2)),
+             (255, 0, 255), 1)
+    # show and display
+    # frame_draw = cv2.resize(frame_draw, (1280, 960))
+    cv2.imshow('draw_frame', frame_draw)
 
-if __name__ == '__main__':
-    run()
+    key = cv2.waitKey(30) & 0xFF
+    if key == ord('q') or key == 27:
+        exit(0)
+    if key == ord('p') or key == ord('P'):
+        PAUSE = not PAUSE
+
+vw.release()

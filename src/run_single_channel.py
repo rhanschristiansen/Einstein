@@ -1,6 +1,4 @@
-"""
-TODO: short description
-"""
+from __future__ import print_function
 import os
 import sys
 import datetime
@@ -9,22 +7,21 @@ import numpy as np
 from detection.detection import Detection
 from tracking.multiple_object_tracker import MultipleObjectTracker
 from detection.car_detector import CarDetector
+from detection.car_detector_tf import CarDetectorTF
 from data_logging.data_logger import DataLogger
 from distance_prediction.distance_predictor import DistancePredictor
 from lidar.lidar_sensor import LidarSensor
 
-caffe_root = '/home/robert/caffe-0.15.9/'
-sys.path.insert(0, caffe_root + 'python')
+# caffe_root = '/home/robert/caffe-0.15.9/'
+# sys.path.insert(0, caffe_root + 'python')
 
 
 # hold all our settings
 class Settings(object):
     def __init__(self):
         self.SIMULATION_MODE = True
-        # self.SIMULATION_FILE = os.path.expanduser('~/PycharmProjects/Einstein/src/simulation_data/output43.csv')
         self.SIMULATION_FILE = os.path.expanduser('~/PycharmProjects/Einstein/src/simulation_data/output43.csv')
-        # self.INPUT_VIDEO_FILE = os.path.expanduser('~/PycharmProjects/Einstein/src/simulation_data/output43.avi')
-        self.INPUT_VIDEO_FILE = os.path.expanduser('~/PycharmProjects/Einstein/Data/2018-05-05/0013.avi')
+        self.INPUT_VIDEO_FILE = os.path.expanduser('~/PycharmProjects/Einstein/src/simulation_data/output43.avi')
         self.WEBCAM_ID = 0
         self.RECORD_VIDEO = True
         self.OUTPUT_VIDEO_FOLDER = './output_video'
@@ -63,7 +60,8 @@ def run():
                              fourcc,
                              20.0, (frame.shape[1], frame.shape[0]))
 
-    detector = CarDetector()
+    # detector = CarDetector()
+    detector = CarDetectorTF()
     tracker = MultipleObjectTracker()
     if settings.SIMULATION_MODE is True:
         lidar = LidarSensor(mode='simulation', simulation_data_file=settings.SIMULATION_FILE)
@@ -84,7 +82,7 @@ def run():
         # now acquire image and get detections
         _, img = vc.read()
         if img is None:
-            print 'null image retrieved! frame={}'.format(current_frame_position)
+            print('null image retrieved! frame={}'.format(current_frame_position))
             break
         current_frame_position += 1
         img = cv2.resize(img, (int(img.shape[1] * scale_factor), int(img.shape[0] * scale_factor)))

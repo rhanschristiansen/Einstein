@@ -46,6 +46,7 @@ class KalmanFilter(object):
     def get_predicted_bb(self):
         pred = self.kalman.predict().T[0]
         pred_bb = np.array([pred[0], pred[1], pred[4], pred[5]])
+        # print pred_bb
 
         return pred_bb
 

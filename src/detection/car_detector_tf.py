@@ -13,7 +13,10 @@ import cv2
 
 class CarDetectorTF(object):
     def __init__(self):
+        self.initialize = None
+        self.session = None
         self.detection_graph = self.load_model()
+        self.init_session()
 
     def load_model(self):
         model_name = 'ssd_mobilenet_v2_coco_2018_03_29'
@@ -46,10 +49,87 @@ class CarDetectorTF(object):
             tar.close()
 
     def init_session(self):
-        """WORK IN PROGRESS"""
-        self.context_manager = self.detection_graph.as_default()
-        self.session = tf.Session()
+        """initialize tensorflow session for our detection graph"""
+        self.session = tf.Session(graph=self.detection_graph)
+        # Get handles to input and output tensors
+        with self.detection_graph.as_default():
+            self.initialize = tf.global_variables_initializer()
+            ops = tf.get_default_graph().get_operations()
+            # ops = self.detection_graph.get_operations()
+            all_tensor_names = {output.name for op in ops for output in op.outputs}
+            self.tensor_dict = {}
+            for key in [
+                'num_detections', 'detection_boxes', 'detection_scores',
+                'detection_classes', 'detection_masks'
+            ]:
+                tensor_name = key + ':0'
+                if tensor_name in all_tensor_names:
+                    self.tensor_dict[key] = tf.get_default_graph().get_tensor_by_name(
+                        tensor_name)
+            self.image_tensor = tf.get_default_graph().get_tensor_by_name('image_tensor:0')
 
+
+    def detect(self, img):
+        """
+        Given input image, return detections
+        :param img: 
+        :return:
+        """
+        with self.detection_graph.as_default():
+            self.session.run(self.initialize)
+            detections = self.session.run(self.tensor_dict,
+                                  feed_dict={self.image_tensor: np.expand_dims(img, 0)})
+
+            # all outputs are float32 numpy arrays, so convert types as appropriate
+            detections['num_detections'] = int(detections['num_detections'][0])
+            detections['detection_classes'] = detections[
+                'detection_classes'][0].astype(np.uint8)
+            detections['detection_boxes'] = detections['detection_boxes'][0]
+            detections['detection_scores'] = detections['detection_scores'][0]
+            if 'detection_masks' in detections:
+                detections['detection_masks'] = detections['detection_masks'][0]
+
+            num_detections = detections['num_detections']
+            detection_boxes = detections['detection_boxes'][:num_detections]
+            detection_scores = detections['detection_scores'][:num_detections]
+            detection_classes = detections['detection_classes'][:num_detections]
+            bboxes = []
+            img_width, img_height = img.shape[1], img.shape[0]
+            for det, cls, score in zip(detection_boxes, detection_classes, detection_scores):
+                y1, x1, y2, x2 = det
+                x1 *= img_width
+                x2 *= img_width
+                y1 *= img_height
+                y2 *= img_height
+                bboxes.append([int(x1),int(y1),int(x2),int(y2)])
+            return bboxes
+            # return detection_boxes, detection_classes, detection_scores
+
+    def run_inference_for_video2(self, video_file):
+        vc = cv2.VideoCapture()
+        if not vc.open(video_file):
+            raise Exception('error opening {}'.format(video_file))
+                # Run inference
+        while True:
+            _, img = vc.read()
+            detection_boxes, detection_classes, detection_scores = self.detect(img=img)
+            img_width = img.shape[1]
+            img_height = img.shape[0]
+            img_draw = img.copy()
+            for det, cls, score in zip(detection_boxes, detection_classes, detection_scores):
+                y1, x1, y2, x2 = det
+                x1 *= img_width
+                x2 *= img_width
+                y1 *= img_height
+                y2 *= img_height
+                cv2.putText(img_draw, '{}'.format(cls), (int(x1), int(y1)), 2, 1, (0, 255, 0))
+                cv2.putText(img_draw, '{}'.format(score), (int(x1) + 10, int(y1)), 1, 1, (0, 255, 255))
+                cv2.rectangle(img_draw, (int(x1), int(y1)), (int(x2), int(y2)), (0, 255, 0), 2)
+
+            cv2.imshow('img', img_draw)
+            ch = cv2.waitKey(10)
+            if ch & 0xFF == ord('q') or ch & 0xFF == 27:
+                break
     def run_inference_for_video(self, video_file):
         vc = cv2.VideoCapture()
         if not vc.open(video_file):
@@ -111,4 +191,4 @@ class CarDetectorTF(object):
 if __name__ == '__main__':
     video_file = os.path.expanduser('~/PycharmProjects/Einstein/Data/2018-05-05/0015.avi')
     detector = CarDetectorTF()
-    detector.run_inference_for_video(video_file=video_file)
+    detector.run_inference_for_video2(video_file=video_file)
