@@ -69,7 +69,7 @@ class CarDetectorTF(object):
             self.image_tensor = tf.get_default_graph().get_tensor_by_name('image_tensor:0')
 
 
-    def detect(self, img):
+    def detect(self, img, return_class_scores=False):
         """
         Given input image, return detections
         :param img: 
@@ -102,8 +102,10 @@ class CarDetectorTF(object):
                 y1 *= img_height
                 y2 *= img_height
                 bboxes.append([int(x1),int(y1),int(x2),int(y2)])
-            return bboxes
-            # return detection_boxes, detection_classes, detection_scores
+            if return_class_scores:
+                return detection_boxes, detection_classes, detection_scores
+            else:
+                return bboxes
 
     def run_inference_for_video2(self, video_file):
         vc = cv2.VideoCapture()
@@ -112,7 +114,7 @@ class CarDetectorTF(object):
                 # Run inference
         while True:
             _, img = vc.read()
-            detection_boxes, detection_classes, detection_scores = self.detect(img=img)
+            detection_boxes, detection_classes, detection_scores = self.detect(img=img, return_class_scores=True)
             img_width = img.shape[1]
             img_height = img.shape[0]
             img_draw = img.copy()
