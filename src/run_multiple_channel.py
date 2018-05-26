@@ -35,7 +35,7 @@ detector = CarDetectorTF()
 LIDAR_SPACING_PX = 38  # value found experimentally
 START_X_LEFT_PX = 615 - LIDAR_SPACING_PX * 15  # value found experimentally
 M_TO_FT = 3.28084
-def draw_lidar_spacing_lines(frame, frame_num, lidar_spacing_px=37, start_x_left=60, m16_detections=None):
+def draw_lidar_spacing_lines(frame, frame_num, lidar_spacing_px=37, start_x_left=30, m16_detections=None):
     end_x_right = start_x_left + 16 * lidar_spacing_px
     for seg, x_val in enumerate(range(start_x_left, end_x_right, lidar_spacing_px)):
         cv2.line(frame, (x_val, 0), (x_val, 480), (0, 255, 0), 2)

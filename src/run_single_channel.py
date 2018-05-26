@@ -6,7 +6,6 @@ import cv2
 import numpy as np
 from detection.detection import Detection
 from tracking.multiple_object_tracker import MultipleObjectTracker
-from detection.car_detector import CarDetector
 from detection.car_detector_tf import CarDetectorTF
 from data_logging.data_logger import DataLogger
 from distance_prediction.distance_predictor import DistancePredictor
