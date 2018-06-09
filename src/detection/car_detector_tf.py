@@ -17,6 +17,7 @@ class CarDetectorTF(object):
         self.session = None
         self.detection_graph = self.load_model()
         self.init_session()
+        self.frameno = 0
 
     def load_model(self):
         model_name = 'ssd_mobilenet_v2_coco_2018_03_29'
@@ -115,6 +116,7 @@ class CarDetectorTF(object):
         while True:
             _, img = vc.read()
             detection_boxes, detection_classes, detection_scores = self.detect(img=img, return_class_scores=True)
+            self.frameno += 1
             img_width = img.shape[1]
             img_height = img.shape[0]
             img_draw = img.copy()
@@ -127,7 +129,8 @@ class CarDetectorTF(object):
                 cv2.putText(img_draw, '{}'.format(cls), (int(x1), int(y1)), 2, 1, (0, 255, 0))
                 cv2.putText(img_draw, '{}'.format(score), (int(x1) + 10, int(y1)), 1, 1, (0, 255, 255))
                 cv2.rectangle(img_draw, (int(x1), int(y1)), (int(x2), int(y2)), (0, 255, 0), 2)
-
+            font = cv2.FONT_HERSHEY_SIMPLEX
+            cv2.putText(img_draw, 'Frame:'+str(self.frameno), (10, 20), 1, 1, (0,255,0))
             cv2.imshow('img', img_draw)
             ch = cv2.waitKey(10)
             if ch & 0xFF == ord('q') or ch & 0xFF == 27:

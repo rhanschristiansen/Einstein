@@ -12,7 +12,7 @@ Goal:
     correlate bounding box detections to lidar readings
     This will help us to generate training data for the bounding box to distance estimation
 """
-WRITE_VIDEO_FILE = False
+WRITE_VIDEO_FILE = True
 PWD = os.path.dirname(__file__)
 # DATA_DATE = datetime.datetime.today().strftime('%Y-%m-%d')
 DATA_DATE = '2018-05-05'
@@ -27,9 +27,17 @@ print(m16_detections.head())
 
 fourcc = cv2.VideoWriter_fourcc('X', 'V', 'I', 'D')
 date = os.path.basename(DATA_DIR)
+# vw = cv2.VideoWriter(
+#     os.path.join('/home/robert/PycharmProjects/Einstein/Data/Processed', '{}_{}.avi'.format(date, RUN_NUMBER)), fourcc,
+#     20.0, (640, 480))
+
+
 vw = cv2.VideoWriter(
-    os.path.join('/home/robert/PycharmProjects/Einstein/Data/Processed', '{}_{}.avi'.format(date, RUN_NUMBER)), fourcc,
+    os.path.join('/home/robert/PycharmProjects/Eddie/M16Analysis', '{}_{}.avi'.format(date, RUN_NUMBER)), fourcc,
     20.0, (640, 480))
+
+#/home/robert/PycharmProjects/Eddie/M16  Analysis
+
 detector = CarDetectorTF()
 
 LIDAR_SPACING_PX = 38  # value found experimentally
