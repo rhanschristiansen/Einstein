@@ -1,9 +1,12 @@
 from __future__ import print_function
 import os
 import cv2
+import numpy as np
 import pandas as pd
 import datetime
 from detection.car_detector_tf import CarDetectorTF
+from tracking.multiple_object_tracker import MultipleObjectTracker
+from detection.detection import Detection
 
 """
 Open a recorded data acquisition run with video file and M16 lidar readings.
@@ -76,21 +79,43 @@ def draw_bboxes(bboxes, img):
             cv2.rectangle(img, (bb[0], bb[1]), (bb[2], bb[3]), (0, 255, 0), 2)
 
     return img
+
+
+tracker = MultipleObjectTracker()
+
 PAUSE = False
+current_frame_position = 0
 while True:
     if PAUSE is not True:
         success, frame = video_feed.read()
+        current_frame_position += 1
         if not success:
             print('no frame')
             break
         bboxes = detector.detect(img=frame)
-        frame_draw = draw_bboxes(img=frame, bboxes=bboxes)
+        # fill in the list of detections
+        detections = []
+        if bboxes is not None and len(bboxes) > 0:
+            for i, bb in enumerate(bboxes):
+                det = Detection()
+                det.bbox = np.array([bb[0], bb[1], bb[2], bb[3]])
+                det.frame_id = current_frame_position
+                detections.append(det)
+                # DRAW DETECTIONS IN GREEN (B, G, R) = (0, 255, 0)
+                # cv2.rectangle(img, (bb[0], bb[1]), (bb[2], bb[3]), (0, 255, 0), 2)
+                # log the data, recall headers = ['time', 'id', 'x1', 'y1', 'x2', 'y2']
+                # bb_id = i
+                # data = [current_time, bb_id, bb[0], bb[1], bb[2], bb[3]]
+        tracker.update_tracks(detections=detections, frame_id=current_frame_position)
+        frame_draw = frame.copy()
+        # frame_draw = draw_bboxes(img=frame, bboxes=bboxes)
+        tracker.draw_tracks(frame_draw)
         frame_num = video_feed.get(cv2.CAP_PROP_POS_FRAMES)
-        try:
-            frame_draw = draw_lidar_spacing_lines(frame_draw, frame_num, m16_detections=m16_detections)
-        except:
-            print('Leave last frame')
-            break
+        # try:
+        #     frame_draw = draw_lidar_spacing_lines(frame_draw, frame_num, m16_detections=m16_detections)
+        # except:
+        #     print('Leave last frame')
+        #     break
 
         # write video
         if WRITE_VIDEO_FILE:
@@ -102,6 +127,8 @@ while True:
              (255, 0, 255), 1)
     # show and display
     # frame_draw = cv2.resize(frame_draw, (1280, 960))
+    cv2.putText(frame_draw, 'frame num = ' + str(frame_num), (0, 25), 1, 2, (0, 0, 255), 2)
+
     cv2.imshow('draw_frame', frame_draw)
 
     key = cv2.waitKey(30) & 0xFF
