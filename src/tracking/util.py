@@ -1,3 +1,4 @@
+from __future__ import print_function
 import base64, cv2, os, glob
 import numpy as np
 import math
@@ -73,7 +74,7 @@ def make_grids_of_images_from_folder(images_path, image_shape, grid_shape):
         if ip.endswith('.jpg') or ip.endswith('.jpeg') or ip.endswith('.png'):
             img_path_list.append(ip)
     if len(img_path_list) < 1:
-        print 'No images found at {}'.format(images_path)
+        print('No images found at {}'.format(images_path))
         return None
     image_grids = []
     # start with black canvas to draw images to
@@ -83,7 +84,7 @@ def make_grids_of_images_from_folder(images_path, image_shape, grid_shape):
     for img_path in img_path_list:
         img = cv2.imread(img_path)
         if img is None:
-            print 'ERROR: reading {}. skipping.'.format(img_path)
+            print('ERROR: reading {}. skipping.'.format(img_path))
             continue
         img = cv2.resize(img, image_shape)
         # draw image to black canvas

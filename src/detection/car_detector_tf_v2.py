@@ -1,198 +1,91 @@
+from __future__ import absolute_import
 """
 Car detector using tensorflow models
 TODO: move into a class
 """
 import os
-import urllib
-import urllib2
 import tarfile
 import numpy as np
-import tensorflow as tf
 import cv2
+import tensorflow as tf
+from .yolov3 import yolov3
 
 
-class CarDetectorTF(object):
+class CarDetectorTFV2(object):
     def __init__(self):
-        self.initialize = None
-        self.session = None
-        self.detection_graph = self.load_model()
-        self.init_session()
-        self.frameno = 0
-
-    def load_model(self):
-        model_name = 'ssd_mobilenet_v2_coco_2018_03_29'
-        model_dir = os.getcwd()
-        model_path = os.path.join(model_dir, model_name)
-        checkpoint_path = os.path.join(model_path, 'frozen_inference_graph.pb')
-        if not os.path.exists(checkpoint_path):
-            model_download_url = 'http://download.tensorflow.org/models/object_detection/{}.tar.gz'.format(model_name)
-            self.download_extract_model(model_download_url=model_download_url)
-        detection_graph = tf.Graph()
-        with detection_graph.as_default():
-            od_graph_def = tf.GraphDef()
-            with tf.gfile.GFile(checkpoint_path, 'rb') as fid:
-                serialized_graph = fid.read()
-                od_graph_def.ParseFromString(serialized_graph)
-                tf.import_graph_def(od_graph_def, name='')
-        return detection_graph
-
-    def download_extract_model(self, model_download_url):
-        fname = os.path.basename(model_download_url)
-        print('downloading {}...'.format(fname))
-        f = urllib2.urlopen(model_download_url)
-        data = f.read()
-        with open(fname, "wb") as code:
-            code.write(data)
-        print('extracting {}'.format(fname))
-        if (fname.endswith("tar.gz")):
-            tar = tarfile.open(fname, "r:gz")
-            tar.extractall()
-            tar.close()
-
-    def init_session(self):
-        """initialize tensorflow session for our detection graph"""
-        self.session = tf.Session(graph=self.detection_graph)
-        # Get handles to input and output tensors
-        with self.detection_graph.as_default():
-            self.initialize = tf.global_variables_initializer()
-            ops = tf.get_default_graph().get_operations()
-            # ops = self.detection_graph.get_operations()
-            all_tensor_names = {output.name for op in ops for output in op.outputs}
-            self.tensor_dict = {}
-            for key in [
-                'num_detections', 'detection_boxes', 'detection_scores',
-                'detection_classes', 'detection_masks'
-            ]:
-                tensor_name = key + ':0'
-                if tensor_name in all_tensor_names:
-                    self.tensor_dict[key] = tf.get_default_graph().get_tensor_by_name(
-                        tensor_name)
-            self.image_tensor = tf.get_default_graph().get_tensor_by_name('image_tensor:0')
+        tf.reset_default_graph()
+        self.session = tf.Session()
+        self.batch_size = 1
+        self.max_output_size = 10
+        self.iou_threshold = 0.5
+        self.confidence_threshold = 0.5
+        self.model = yolov3.Yolo_v3(max_output_size=self.max_output_size,
+                                    iou_threshold=self.iou_threshold,
+                                    confidence_threshold=self.confidence_threshold)
+        self.class_names = self.model.class_names
+        self.model_size = self.model.model_size
+        self.inputs = tf.placeholder(tf.float32, [self.batch_size, self.model_size[0], self.model_size[1], 3])
+        self.run_inference = self.model(self.inputs, training=False)
+        self.model_vars = tf.global_variables(scope='yolo_v3_model')
+        self.assign_ops = yolov3.load_weights(self.model_vars, self.model.weights_path)
+        self.session.run(self.assign_ops)
 
     def detect(self, img, return_class_scores=False):
         """
         Given input image, return detections
-        :param img: 
-        :return:
         """
-        with self.detection_graph.as_default():
-            self.session.run(self.initialize)
-            detections = self.session.run(self.tensor_dict,
-                                          feed_dict={self.image_tensor: np.expand_dims(img, 0)})
-
-            # all outputs are float32 numpy arrays, so convert types as appropriate
-            detections['num_detections'] = int(detections['num_detections'][0])
-            detections['detection_classes'] = detections[
-                'detection_classes'][0].astype(np.uint8)
-            detections['detection_boxes'] = detections['detection_boxes'][0]
-            detections['detection_scores'] = detections['detection_scores'][0]
-            if 'detection_masks' in detections:
-                detections['detection_masks'] = detections['detection_masks'][0]
-
-            num_detections = detections['num_detections']
-            detection_boxes = detections['detection_boxes'][:num_detections]
-            detection_scores = detections['detection_scores'][:num_detections]
-            detection_classes = detections['detection_classes'][:num_detections]
-            bboxes = []
-            img_width, img_height = img.shape[1], img.shape[0]
-            for det, cls, score in zip(detection_boxes, detection_classes, detection_scores):
-                y1, x1, y2, x2 = det
-                x1 *= img_width
-                x2 *= img_width
-                y1 *= img_height
-                y2 *= img_height
-                bboxes.append([int(x1), int(y1), int(x2), int(y2)])
-            if return_class_scores:
-                return detection_boxes, detection_classes, detection_scores
-            else:
-                return bboxes
-
-    def run_inference_for_video2(self, video_file):
-        vc = cv2.VideoCapture()
-        if not vc.open(video_file):
-            raise Exception('error opening {}'.format(video_file))
-            # Run inference
-        while True:
-            _, img = vc.read()
-            detection_boxes, detection_classes, detection_scores = self.detect(img=img, return_class_scores=True)
-            self.frameno += 1
-            img_width = img.shape[1]
-            img_height = img.shape[0]
-            img_draw = img.copy()
-            for det, cls, score in zip(detection_boxes, detection_classes, detection_scores):
-                y1, x1, y2, x2 = det
-                x1 *= img_width
-                x2 *= img_width
-                y1 *= img_height
-                y2 *= img_height
-                cv2.putText(img_draw, '{}'.format(cls), (int(x1), int(y1)), 2, 1, (0, 255, 0))
-                cv2.putText(img_draw, '{}'.format(score), (int(x1) + 10, int(y1)), 1, 1, (0, 255, 255))
-                cv2.rectangle(img_draw, (int(x1), int(y1)), (int(x2), int(y2)), (0, 255, 0), 2)
-            font = cv2.FONT_HERSHEY_SIMPLEX
-            cv2.putText(img_draw, 'Frame:' + str(self.frameno), (10, 20), 1, 1, (0, 255, 0))
-            cv2.imshow('img', img_draw)
-            ch = cv2.waitKey(10)
-            if ch & 0xFF == ord('q') or ch & 0xFF == 27:
-                break
-
-    def run_inference_for_video(self, video_file):
-        vc = cv2.VideoCapture()
-        if not vc.open(video_file):
-            raise Exception('error opening {}'.format(video_file))
-        with self.detection_graph.as_default():
-            with tf.Session() as sess:
-                # Get handles to input and output tensors
-                ops = tf.get_default_graph().get_operations()
-                all_tensor_names = {output.name for op in ops for output in op.outputs}
-                tensor_dict = {}
-                for key in [
-                    'num_detections', 'detection_boxes', 'detection_scores',
-                    'detection_classes', 'detection_masks'
-                ]:
-                    tensor_name = key + ':0'
-                    if tensor_name in all_tensor_names:
-                        tensor_dict[key] = tf.get_default_graph().get_tensor_by_name(
-                            tensor_name)
-                image_tensor = tf.get_default_graph().get_tensor_by_name('image_tensor:0')
-
-                # Run inference
-                while True:
-                    _, img = vc.read()
-                    detections = sess.run(tensor_dict,
-                                          feed_dict={image_tensor: np.expand_dims(img, 0)})
-                    # all outputs are float32 numpy arrays, so convert types as appropriate
-                    detections['num_detections'] = int(detections['num_detections'][0])
-                    detections['detection_classes'] = detections[
-                        'detection_classes'][0].astype(np.uint8)
-                    detections['detection_boxes'] = detections['detection_boxes'][0]
-                    detections['detection_scores'] = detections['detection_scores'][0]
-                    if 'detection_masks' in detections:
-                        detections['detection_masks'] = detections['detection_masks'][0]
-
-                    num_detections = detections['num_detections']
-                    detection_boxes = detections['detection_boxes'][:num_detections]
-                    detection_scores = detections['detection_scores'][:num_detections]
-                    detection_classes = detections['detection_classes'][:num_detections]
-                    img_width = img.shape[1]
-                    img_height = img.shape[0]
-                    img_draw = img.copy()
-                    for det, cls, score in zip(detection_boxes, detection_classes, detection_scores):
-                        y1, x1, y2, x2 = det
-                        x1 *= img_width
-                        x2 *= img_width
-                        y1 *= img_height
-                        y2 *= img_height
-                        cv2.putText(img_draw, '{}'.format(cls), (int(x1), int(y1)), 2, 1, (0, 255, 0))
-                        cv2.putText(img_draw, '{}'.format(score), (int(x1) + 10, int(y1)), 1, 1, (0, 255, 255))
-                        cv2.rectangle(img_draw, (int(x1), int(y1)), (int(x2), int(y2)), (0, 255, 0), 2)
-
-                    cv2.imshow('img', img_draw)
-                    ch = cv2.waitKey(10)
-                    if ch & 0xFF == ord('q') or ch & 0xFF == 27:
-                        break
+        detection_boxes, detection_classes, detection_scores = [], [], []
+        img_net = cv2.resize(img, (self.model_size[0], self.model_size[1]))
+        batch = np.array([img_net])
+        detection_result = self.session.run(self.run_inference, feed_dict={self.inputs: batch})
+        det = detection_result[0]
+        resize_factor = (img.shape[1] / self.model_size[0], img.shape[0] / self.model_size[1])
+        for cls in range(len(self.class_names)):
+            boxes = det[cls]
+            if np.size(boxes) != 0:
+                for box in boxes:
+                    xy, confidence = box[:4], box[4]
+                    xy = [int(xy[i] * resize_factor[i % 2]) for i in range(4)]
+                    x1, y1, x2, y2 = xy[0], xy[1], xy[2], xy[3]
+                    bbox = [x1, y1, x2, y2]
+                    detection_boxes.append(bbox)
+                    detection_classes.append(self.class_names[cls])
+                    detection_scores.append(confidence)
+        if return_class_scores:
+            return detection_boxes, detection_classes, detection_scores
+        else:
+            return detection_boxes
 
 
 if __name__ == '__main__':
-    video_file = os.path.expanduser('~/PycharmProjects/Einstein/Data/2018-05-05/0015.avi')
-    detector = CarDetectorTF()
-    detector.run_inference_for_video2(video_file=video_file)
+    detector = CarDetectorTFV2()
+    video_filename = './yolov3/videos/0002.avi'
+    vc = cv2.VideoCapture()
+    vc.open(video_filename)
+    # skip to frames of interest
+    SKIP_FRAMES = 400
+    CONFIDENCE_THRESHOLD = 0.80
+    print("skipping first {} frames...".format(SKIP_FRAMES))
+    for _ in range(SKIP_FRAMES):
+        vc.read()
+    print('done.')
+    while True:
+        _, img = vc.read()
+        if img is None:
+            break
+        detections = detector.detect(img=img, return_class_scores=True)
+        bboxes, class_names, confidences = detections
+        for bbox, class_name, confidence in zip(bboxes, class_names, confidences):
+            if class_name in ['car', 'truck', 'bus'] and confidence > CONFIDENCE_THRESHOLD:
+                x1, y1, x2, y2 = bbox
+                color = (0, 255, 0)
+                cv2.rectangle(img, (x1, y1), (x2, y2), color, thickness=2)
+                text = '{} {:.1f}%'.format(class_name,
+                                           confidence * 100)
+                cv2.putText(img, text, (x1, y1-5), 1, 1.5, color, 2)
+        cv2.imshow('img', img)
+        key = cv2.waitKey(1)
+        if key & 0xFF == 27 or key == ord('q'):
+            break
+    vc.release()
+    cv2.destroyAllWindows()

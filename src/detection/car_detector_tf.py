@@ -4,7 +4,10 @@ TODO: move into a class
 """
 import os
 import urllib
-import urllib2
+try:
+    from urllib2 import urlopen
+except:
+    from urllib.request import urlopen
 import tarfile
 import numpy as np
 import tensorflow as tf
@@ -39,7 +42,7 @@ class CarDetectorTF(object):
     def download_extract_model(self, model_download_url):
         fname = os.path.basename(model_download_url)
         print('downloading {}...'.format(fname))
-        f = urllib2.urlopen(model_download_url)
+        f = urlopen(model_download_url)
         data = f.read()
         with open(fname, "wb") as code:
             code.write(data)
@@ -69,7 +72,6 @@ class CarDetectorTF(object):
                         tensor_name)
             self.image_tensor = tf.get_default_graph().get_tensor_by_name('image_tensor:0')
 
-
     def detect(self, img, return_class_scores=False):
         """
         Given input image, return detections
@@ -79,7 +81,7 @@ class CarDetectorTF(object):
         with self.detection_graph.as_default():
             self.session.run(self.initialize)
             detections = self.session.run(self.tensor_dict,
-                                  feed_dict={self.image_tensor: np.expand_dims(img, 0)})
+                                          feed_dict={self.image_tensor: np.expand_dims(img, 0)})
 
             # all outputs are float32 numpy arrays, so convert types as appropriate
             detections['num_detections'] = int(detections['num_detections'][0])
@@ -102,9 +104,9 @@ class CarDetectorTF(object):
                 x2 *= img_width
                 y1 *= img_height
                 y2 *= img_height
-                bboxes.append([int(x1),int(y1),int(x2),int(y2)])
+                bboxes.append([int(x1), int(y1), int(x2), int(y2)])
             if return_class_scores:
-                return detection_boxes, detection_classes, detection_scores
+                return bboxes, detection_classes, detection_scores
             else:
                 return bboxes
 
@@ -112,7 +114,7 @@ class CarDetectorTF(object):
         vc = cv2.VideoCapture()
         if not vc.open(video_file):
             raise Exception('error opening {}'.format(video_file))
-                # Run inference
+            # Run inference
         while True:
             _, img = vc.read()
             detection_boxes, detection_classes, detection_scores = self.detect(img=img, return_class_scores=True)
@@ -130,11 +132,12 @@ class CarDetectorTF(object):
                 cv2.putText(img_draw, '{}'.format(score), (int(x1) + 10, int(y1)), 1, 1, (0, 255, 255))
                 cv2.rectangle(img_draw, (int(x1), int(y1)), (int(x2), int(y2)), (0, 255, 0), 2)
             font = cv2.FONT_HERSHEY_SIMPLEX
-            cv2.putText(img_draw, 'Frame:'+str(self.frameno), (10, 20), 1, 1, (0,255,0))
+            cv2.putText(img_draw, 'Frame:' + str(self.frameno), (10, 20), 1, 1, (0, 255, 0))
             cv2.imshow('img', img_draw)
             ch = cv2.waitKey(10)
             if ch & 0xFF == ord('q') or ch & 0xFF == 27:
                 break
+
     def run_inference_for_video(self, video_file):
         vc = cv2.VideoCapture()
         if not vc.open(video_file):
@@ -190,7 +193,6 @@ class CarDetectorTF(object):
                     ch = cv2.waitKey(10)
                     if ch & 0xFF == ord('q') or ch & 0xFF == 27:
                         break
-
 
 
 if __name__ == '__main__':

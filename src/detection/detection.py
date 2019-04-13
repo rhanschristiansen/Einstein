@@ -11,6 +11,8 @@ class Detection(object):
         self.has_match = False
         self.num_matches = 0
         self.matches = []
+        self.label = None
+        self.confidence = None
 
     def as_numpy_array(self):
         return np.array([np.hstack((self.frame_id, self.bbox, self.fvec))])
