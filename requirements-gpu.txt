@@ -1,7 +1,7 @@
 numpy
 pandas
 Pillow
-tensorflow-gpu==1.9.0
+tensorflow-gpu==1.15.0
 jupyter
 ffmpeg-python
 matplotlib
