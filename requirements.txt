@@ -5,7 +5,7 @@ tensorflow==1.9.0
 jupyter
 ffmpeg-python
 matplotlib
-opencv-python==3.4.5.20
+opencv-python==4.2.0.32
 minimalmodbus
 scikit-learn
 scikit-image
